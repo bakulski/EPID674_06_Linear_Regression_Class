@@ -1,0 +1,50 @@
+---
+title: "EPID674 Epidemiologic Data Analysis using R"
+subtitle: "Homework 6A"
+author: "Insert Your Name Here"
+date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  word_document: default
+---
+
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(foreign)
+library(epiDisplay)
+library(stats)
+library(Hmisc)
+library(gmodels)
+
+directory <- "/cloud/project/"
+```
+
+# Using the dataset “bpa.sas7bdat”, answer the following. 
+
+
+# Problem 1
+## Build a regression model for the association between BMI and urinary BPA. Include urinary creatinine (ucr), age, gender, race-ethnicity, education and household income as important confounders. Check if smoking status is a confounder using a 10% rule. Based on your final model, what is the association between BMI and urinary BPA? Compute an effect estimate (difference in BMI) and 95% confidence intervals per one unit and IQR increase in urinary BPA. 
+
+```{r problem 1}
+#Insert code for problem 1 here
+```
+# Interpret results for problem 1 here
+
+# Problem 2
+## Verify the assumptions of a linear model for the final model. Create a histogram of the residuals and check if the distribution of residuals is skewed. Do you think log-transformation of BMI would improve the model fit?
+
+```{r problem 2}
+#Insert code for problem 2 here
+```
+# Include residuals histogram here
+# Interpret results for problem 2 here
+
+# Problem 3
+# Check if gender modifies the association between urinary BPA and BMI. Which group is more susceptible?
+```{r problem 3}
+#Insert code for problem 3 here
+```
+# Interpret results for problem 3 here
+
+

@@ -1,0 +1,609 @@
+---
+title: "EPID674 Epidemiologic Data Analysis using R"
+subtitle: "Regression in R"
+author: "Kelly Bakulski"
+date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
+output:
+   word_document: default
+   html_document: 
+    toc: true
+    toc_float: true
+---
+
+# Set up options
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Install new packages
+```{r install packages, eval=FALSE}
+
+# Install packages. Do this only once.
+options(repos="https://cran.rstudio.com" )
+install.packages("epiDisplay")
+install.packages("Hmisc")
+install.packages("foreign")
+install.packages("stargazer")
+# To avoid installing every time: change set up in curly brackets to eval=FALSE
+```
+
+
+# Load packages
+```{r load packages, include=FALSE}
+##### Load these packages for the current session
+library(foreign)
+library(Hmisc)
+library(epiDisplay)
+library(stargazer)
+```
+
+
+# Specify file directories
+```{r directories}
+#directory <- "/cloud/project/" #Class option when coding on RStudio Cloud
+
+# Three alternate options to customize and specify source data directory if programming on a personal computer (only need to do the one that works for you)
+# directory<-"M:/EPID674/Data/" # Alternate option 1: location of the parent dataset in afs space of school computer
+ directory <- "/Volumes/GoogleDrive/My Drive/Teaching/EPID674/2020_fall/EPID674_Week5_Class/" # Alternate option 2: location of data on my Macbook
+# directory<-"C:/Users/bakulski/Documents/EPID674/Data/" #Alternate option 3: location of data on a personal PC
+
+date <- format(Sys.Date(), "%Y%m%d")
+```
+
+
+# Load data, remake useful variables
+```{r read data}
+
+# Check the file path
+paste0(directory, "nhanes3.rda")
+# Load the saved R data
+load(paste0(directory, "nhanes3.rda"))
+### Or load RData if you saved the workspace image
+# load(".RData")
+
+
+# Remake a few variables from last class if they are no longer in your environment
+sex1 <- factor(nhanes$sex, levels = c(1, 2), labels = c("male", "female"))
+AGE5b <- cut(nhanes$age, quantile(nhanes$age, c(0, .2, .4, .6, .8, 1)), include.lowest = T) # quintiles
+AGE5c <- cut(nhanes$age, breaks = c(19, 40, 50, 60, 70, 90))
+age5c <- unclass(AGE5c)
+nhanes <- cbind(nhanes, sex1, AGE5b, AGE5c, age5c)
+```
+
+
+### 6.1. Linear Models: Association between systolic blood pressure (SBP) and blood lead (bpb)
+```{r check variables}
+## Does the distribution of log(sbp) look closer to the normal distribution?
+par(mfrow = c(2, 1))
+hist(nhanes$sbp, nclass = 20, col = "darkorchid")
+hist(log(nhanes$sbp), nclass = 20, col = "seagreen3")
+
+## Let's start with non-log transformed SBP first. Look at bivariate association between sbp and continuous covariates
+par(mfrow = c(1, 1))
+plot(nhanes$age, nhanes$sbp, pch = 20, cex = 0.7, col = "dodgerblue", cex.lab = 1.2, las = 1, ylab = "SBP", xlab = "Age (years)")
+lines(smooth.spline(nhanes$age, nhanes$sbp, df = 10), col = "dodgerblue", lwd = 3)
+plot(nhanes$bmi, nhanes$sbp, pch = 20, cex = 0.7, col = "dodgerblue", cex.lab = 1.2, las = 1, ylab = "SBP", xlab = "BMI (kg/m2)")
+lines(smooth.spline(na.omit(nhanes$bmi), nhanes$sbp[na.omit(nhanes$bmi)], df = 3, ), col = "grey60", lwd = 3)
+plot(nhanes$bpb, nhanes$sbp, pch = 20, cex = 0.7, col = "dodgerblue", cex.lab = 1.2, las = 1, ylab = "SBP", xlab = "Blood lead level (ug/dL)")
+lines(smooth.spline(nhanes$bpb, nhanes$sbp, df = 10), col = "grey60", lwd = 3)
+
+# Clean up dataset. Make sure NaN are NA for key covariates
+table(nhanes$educ, useNA = "always")
+nhanes$educ[is.nan(nhanes$educ)] <- NA
+table(nhanes$educ, useNA = "always")
+table(nhanes$alc, useNA = "always")
+nhanes$alc[is.nan(nhanes$alc)] <- NA
+table(nhanes$alc, useNA = "always")
+```
+
+
+# Simple linear regression
+```{r simple linear regression}
+## Start creating a simple regression model for systolic blood pressure,
+## including only blood lead (bpb) (crude model).
+sbp.model <- lm(sbp ~ bpb, na.action = na.omit, data = nhanes)
+sbp.model
+summary(sbp.model)
+summary.aov(sbp.model)
+anova(sbp.model)
+
+## Add age in the model
+sbp.model1 <- lm(sbp ~ bpb + age, na.action = na.omit, data = nhanes)
+summary(sbp.model1)
+```
+
+# Add categorical variables linear regression
+```{r linear regression categorical variables}
+## Add race, which is a categorical variable, therefore we should use factor()
+## or as.factor() which creates indicator variables for each category of race
+table(nhanes$race)
+sbp.model2 <- lm(sbp ~ bpb + age + factor(race), na.action = na.omit, data = nhanes)
+summary(sbp.model2)
+
+#### Change the reference level for a factor variable
+# Method 1: Make a new (or alter the old) variable
+table(nhanes$race)
+race2 <- relevel(factor(nhanes$race), ref = 2)
+table(race2)
+sbp.model2 <- lm(sbp ~ bpb + age + factor(race2), na.action = na.omit, data = nhanes)
+summary(sbp.model2)
+# Method 2: Change the contrasts in the lm() statement
+sbp.model2 <- lm(sbp ~ bpb + age + C(factor(race), contr.treatment(2, base = 2)), na.action = na.omit, data = nhanes)
+summary(sbp.model2)
+
+# R provides Type I sequential SS, not the default Type III marginal SS reported by SAS and SPSS.
+# We will need to use the drop1() function to produce the familiar Type III results.
+# It will compare each term with the full model.
+anova(sbp.model2)
+drop1(sbp.model2, test = "F")
+
+## alternative
+library(car)
+Anova(sbp.model2, type = "III")
+
+## We can also use the update function to add variables to a pre-existing model
+sbp.model2 <- update(sbp.model1, . ~ . + factor(race))
+summary(sbp.model2)
+```
+
+# Compare regression models
+```{r linear regression compare models}
+## Add other covariates to the model: which variables are biologically important?
+## Add sex, BMI, educ and smk.
+sbp.model3 <- lm(sbp ~ bpb + age + factor(race) + factor(sex) + bmi + factor(educ) + factor(smk), na.action = na.omit, data = nhanes)
+summary(sbp.model3) # What covariates are associated with SBP? Do they make sense biologically?
+
+# See output from models 1,2,and 3 side by side
+stargazer(sbp.model1, sbp.model2, sbp.model3, type = "text", dep.var.labels = "Systolic Blood Pressure (mmHg)")
+
+### Check if alcohol consumption is a confounder
+sbp.model4 <- update(sbp.model3, . ~ . + factor(alc))
+summary(sbp.model4) # Is alcohol associated with sbp?
+
+summary(sbp.model4)$coef #  Pull out relevant information from the output: Coefficient table
+summary(sbp.model4)$coef[2, 1] # Pull out just the beta coefficient blood Pb
+# 10% guideline for confounders: Does the addition of the new variable change the beta coefficient of interest by >10%?
+(summary(sbp.model4)$coef[2, 1] - summary(sbp.model3)$coef[2, 1]) / summary(sbp.model3)$coef[2, 1] # Calculate the percent change in the blood Pb coefficient before and after alcohol in the model
+# Does alcohol meet the guideline for a confounder?
+```
+
+# Reporting regression results
+```{r linear regression reporting results}
+## Compute percent increase in SBP and 95% CI per one unit increase and IQR increase in bpb
+# for one unit increase in exposure
+summary(sbp.model4)$coef[2, 1] # Beta coefficent
+summary(sbp.model4)$coef[2, 1] - 1.96 * summary(sbp.model4)$coef[2, 2] # Lower confidence interval
+summary(sbp.model4)$coef[2, 1] + 1.96 * summary(sbp.model4)$coef[2, 2] # Upper confidence interval
+regress.display(sbp.model4) # Alternative: Convenience function to show all of the CI with the beta coefficients
+
+# for an IQR increase in exposure, to improve communication of findings
+IQR(nhanes$bpb)
+IQR(nhanes$bpb) * summary(sbp.model4)$coef[2, 1] # Per IQR increase in exposure, beta coefficent 
+l95ci.iqr <- IQR(nhanes$bpb) * (summary(sbp.model4)$coef[2, 1] - 1.96 * summary(sbp.model4)$coef[2, 2]) # Per IQR increase in exposure, lower confidence interval
+u95ci.iqr <- IQR(nhanes$bpb) * (summary(sbp.model4)$coef[2, 1] + 1.96 * summary(sbp.model4)$coef[2, 2]) # Per IQR increase in exposure, upper confidence interval
+regress.display(sbp.model4)$table[2, ] * IQR(nhanes$bpb) # Multiply the convenience table by the IQR
+```
+
+# Compare regression results
+```{r linear regression compare results}
+## Does the variable packyrs give a better estimate than smk?
+sbp.model5 <- update(sbp.model4, . ~ . - factor(smk) + packyrs)
+summary(sbp.model5)
+
+AIC(sbp.model4, sbp.model5) # Which model has the lower AIC? The one with smk (model 4) or the one with packyrs (model 5)?
+
+## Run two models one with age and one adding age as a quadratic function.
+## Does the quadratic term improve the fit of the model?
+sbp.model6 <- update(sbp.model4, . ~ . + I(age^2))
+summary(sbp.model6) # Is the age squared term significant?
+
+## use the anova function to compare the 2 models and
+## see if the quadratic term improves the model.
+anova(sbp.model4, sbp.model6, test = "F")
+
+## so sbp.model6 is our final model
+## What is the relationship between bpb and sbp?
+```
+
+# Regression diagnostics
+```{r linear regression diagnostics}
+### Regression Diagnostics
+## In the case of linear model, the plot of the model gives diagnostic plots
+par(mfrow = c(1, 1))
+plot(sbp.model6)
+
+par(mfrow = c(2, 2))
+plot(sbp.model6, id.n = 5, cex = 0.1)
+# plot.lm(sbp.model6)
+
+par(mfrow = c(1, 1))
+plot(sbp.model6, which = 1) # Can ask for the four plots one at a time
+plot(sbp.model6, which = 2)
+plot(sbp.model6, which = 3)
+plot(sbp.model6, which = 5)
+plot(sbp.model6, which = 4) # There is an extra, hidden plot you can call out individually
+
+## How about log(sbp)?
+## Check how diagnostic plots using log-transformed sbp look like
+
+sbp.model6.log <- update(sbp.model6, . - sbp + log(sbp) ~ .)
+summary(sbp.model6.log)
+plot(sbp.model6.log)
+hist(residuals(sbp.model6.log), nclass = 20)
+
+par(mfrow = c(2, 2))
+plot(sbp.model6, which = 1)
+plot(sbp.model6.log, which = 1)
+hist(residuals(sbp.model6), main = "Histogram of res(SBP)")
+hist(residuals(sbp.model6.log), main = "Histogram of res(log(SBP))")
+par(mfrow = c(1, 1))
+
+### Partial Residual Plots
+## Plot sbp vs. bpb given that other variables are in the model (adjusted)
+
+## This can be done by 'termplot'
+termplot(sbp.model6, partial.resid = TRUE, col.res = "gray30", cex = 0.3, smooth = panel.smooth)
+```
+
+## Suppose you decide to go with log transformed SBP.
+## Compute percent increase in SBP and 95% CI per one unit increase and IQR increase in bpb
+## what to report if y is log-transformed?
+## percent increase (difference) vs. absolute increase (difference)?
+## Compute percent increase in SBP and 95% CI per one unit increase and IQR increase in bpb
+```{r log transformed outcome reporting results}
+summary(sbp.model6.log)$coef
+summary(sbp.model6.log)$coef[2, 1]
+summary(sbp.model6.log)$coef[2, 2]
+exp(summary(sbp.model6.log)$coef[2, 1])
+# exp(sbp.model6.log$coef[2])
+100 * (exp(summary(sbp.model6.log)$coef[2, 1]) - 1) # Per one unit increase in blood Pb, percent change in systolic blood pressure
+100 * (exp(summary(sbp.model6.log)$coef[2, 1] - 1.96 * summary(sbp.model6.log)$coef[2, 2]) - 1) # Lower confidence interval
+100 * (exp(summary(sbp.model6.log)$coef[2, 1] + 1.96 * summary(sbp.model6.log)$coef[2, 2]) - 1) # Upper confidence interval
+
+
+IQR(nhanes$bpb)
+100 * (exp(IQR(nhanes$bpb) * summary(sbp.model6.log)$coef[2, 1]) - 1) # Per IQR unit increase in blood Pb, percent change in systolic blood pressure
+100 * (exp(IQR(nhanes$bpb) * (summary(sbp.model6.log)$coef[2, 1] - 1.96 * summary(sbp.model6.log)$coef[2, 2])) - 1) # Lower confidence interval
+100 * (exp(IQR(nhanes$bpb) * (summary(sbp.model6.log)$coef[2, 1] + 1.96 * summary(sbp.model6.log)$coef[2, 2])) - 1) # Upper confidence interval
+```
+## linearity assumption
+
+# Non-linear associations
+```{r add a smoothing term}
+# What if the relationship between blood lead and sbp is non-linear? 
+library(mgcv)
+
+sbp.model6.gam <- gam(sbp ~ s(bpb) + age + factor(race) + factor(sex) + bmi + factor(educ) + factor(smk) + factor(alc) + I(age^2), na.action = na.omit, data = nhanes)
+summary(sbp.model6.gam)
+plot(sbp.model6.gam)
+plot(sbp.model6.gam, xlab = "Blood lead (ug/dL)", ylab = "Change in log(SBP)") # Does this relationship look linear?
+
+# Option to log transform the exposure
+sbp.model7 <- lm(sbp ~ log(bpb) + age + factor(race) + factor(sex) + bmi + factor(educ) + factor(smk) + factor(alc) + I(age^2), na.action = na.omit, data = nhanes)
+summary(sbp.model7)
+summary(sbp.model6)
+
+## compare model6 and model7
+AIC(sbp.model6, sbp.model7) # Which model has the lower AIC? The spline term or the log term for blood Pb?
+```
+
+# Effect modification by sex
+```{r effect modification}
+# What if the relationship between blood Pb and sbp varies by sex?
+table(nhanes$sex)
+
+### Stratified by sex
+## Male (sex==1)
+sbp.model6.male <- lm(sbp ~ bpb + age + factor(race) + bmi + factor(educ)
+  + factor(smk) + factor(alc) + I(age^2), data = nhanes, subset = (sex == 1))
+summary(sbp.model6.male) # What is the beta coefficent for blood Pb in males?
+
+## Female (sex==2)
+sbp.model6.female <- lm(sbp ~ bpb + age + factor(race) + bmi + factor(educ)
+  + factor(smk) + factor(alc) + I(age^2), data = nhanes, subset = (sex == 2))
+summary(sbp.model6.female) # What is the beta coefficent for blood Pb in females? Is it similar to that in males?
+
+### Use interaction model
+sbp.model6.int <- lm(sbp ~ bpb + factor(sex) + bpb * factor(sex) + age + factor(race) + bmi + factor(educ)
+  + factor(smk) + factor(alc) + I(age^2), data = nhanes)
+# below is the same
+sbp.model6.int <- lm(sbp ~ bpb * factor(sex) + age + factor(race) + bmi + factor(educ)
+  + factor(smk) + factor(alc) + I(age^2), data = nhanes)
+summary(sbp.model6.int) # Is the interaction term significant?
+```
+########################################
+############ Exercise 6A ##############
+########################################
+
+
+### 6.3. Generalized Linear Models: Association between hypertension (htn) and blood lead (bpb)
+```{r logistic regression}
+## Logistic regression for hypertension
+## Look at hypertension status (htn)
+tab1(nhanes$htn, graph = F)
+
+htn.model <- glm(htn ~ bpb + age + factor(sex) + factor(race) + bmi + factor(educ) + factor(smk) + factor(alc),
+  family = binomial,
+  na.action = na.omit, data = nhanes
+)
+summary(htn.model)
+
+# Compute ORs
+logistic.display(htn.model)
+
+# Regression diagnostics
+par(mfrow = c(2, 2))
+plot(htn.model)
+
+par(mfrow = c(1, 1))
+termplot(htn.model, se = T, partial.resid = T)
+```
+
+# Stepwise variable selection
+```{r logistic regression stepwise variable selection, include = F}
+## you can construct your model using variable selection methods (forward, backward, stepwise)
+# first, define a matrix of predictors
+X <- nhanes[, c(3:8, 13:25, 29, 30)]
+Y <- nhanes$htn
+dat <- data.frame(cbind(Y, X))
+dat <- na.omit(dat) # note: dataset should be complete
+summ(dat)
+
+fit.start <- glm(Y ~ 1, data = dat, family = binomial) # Starting model has no predictors, just outcome.
+summary(fit.start)
+fit.full <- glm(Y ~ ., data = dat, family = binomial) # Full model would have all possible covariates
+summary(fit.full)
+
+# Step forward from an empty model to select the most informative predictors
+full <- formula(glm(Y ~ ., data = dat, family = binomial))
+full
+fit.forward <- step(fit.start, direction = "forward", scope = full)
+summary(fit.forward) # Is blood Pb in the final model?
+
+# Step backward from a full model to select the informative predictors (always keep bpb in the model)
+fit.backward <- step(fit.full, direction = "backward", scope = list(lower = ~bpb))
+summary(fit.backward) # Is blood Pb significant?
+
+# Step forward and backward (always keep bpb in the model)
+fit.step <- step(fit.full, direction = "both", scope = list(lower = ~bpb))
+summary(fit.step) # This is exactly the same as backward
+```
+
+# Poisson Regression for count outcomes. 
+# Code is available, but we will skip going through this during class
+```{r poisson regression}
+# ## Poisson regression for respiratory death: Montana dataset from epiDisplay
+# data(Montana)
+# summ(Montana)
+# head(Montana, 10)
+# hist(Montana$respdeath)
+# 
+# par(mfrow = c(2, 2))
+# tab1(Montana$agegr)
+# tab1(Montana$period)
+# tab1(Montana$start)
+# tab1(Montana$arsenic)
+# 
+# ## label categorical variables
+# Montana$agegr <- factor(Montana$agegr, labels = c("40-49", "50-59", "60-69", "70-79"))
+# Montana$period <- factor(Montana$period, labels = c("1938-1949", "1950-1959", "1960-1969", "1970-1977"))
+# Montana$start <- factor(Montana$start, labels = c("pre-1925", "1925 & after"))
+# Montana$arsenic <- factor(Montana$arsenic, labels = c("<1 year", "1-4 years", "5-14 years", "15+ years"))
+# 
+# tab1(Montana$agegr, missing = F)
+# tab1(Montana$period, missing = F)
+# tab1(Montana$start, missing = F)
+# tab1(Montana$arsenic, missing = F)
+# par(mfrow = c(1, 1))
+# 
+# ## Compute incidence rate by age and period
+# table.pyears <- tapply(Montana$personyrs, list(Montana$period, Montana$agegr), sum)
+# table.deaths <- tapply(Montana$respdeath, list(Montana$period, Montana$agegr), sum)
+# table.inc10000 <- table.deaths / table.pyears * 10000
+# table.inc10000
+# 
+# ## create a time-series plot of the incidence
+# plot.ts(table.inc10000, plot.type = "single", xlab = "", ylab = "#/10,000 person-years", xaxt = "n", col = c("black", "blue", "red", "green"), lty = c(2, 1, 1, 2), las = 1)
+# points(rep(1:4, 4), table.inc10000, pch = 22, cex = table.pyears / sum(table.pyears) * 20)
+# title(main = "Incidence by age and period")
+# axis(side = 1, at = 1:4, labels = levels(Montana$period))
+# legend("topleft", legend = levels(Montana$agegr)[4:1], col = c("green", "red", "blue", "black"), bg = "white", lty = c(2, 1, 1, 2))
+# 
+# ## check arsenic
+# tab1(Montana$arsenic)
+# tapply(Montana$respdeath, Montana$arsenic, mean)
+# tapply(Montana$personyrs, Montana$arsenic, mean)
+# 
+# ## Poisson model
+# resp.mode11 <- glm(respdeath ~ period, offset = log(personyrs), family = poisson, data = Montana)
+# summary(resp.mode11)
+# 
+# resp.mode12 <- glm(respdeath ~ agegr, offset = log(personyrs), family = poisson, data = Montana)
+# summary(resp.mode12)
+# 
+# resp.mode13 <- glm(respdeath ~ period + agegr, offset = log(personyrs), family = poisson, data = Montana)
+# summary(resp.mode13)
+# 
+# AIC(resp.mode11, resp.mode12, resp.mode13)
+# ## model2 is better
+# 
+# resp.mode14 <- glm(respdeath ~ agegr + arsenic, offset = log(personyrs), family = poisson, data = Montana)
+# summary(resp.mode14)
+# 
+# ## is there a linear trend across arsenic exposure?
+# resp.mode14.lin <- glm(respdeath ~ agegr + as.numeric(arsenic), offset = log(personyrs), family = poisson, data = Montana)
+# summary(resp.mode14.lin)
+# 
+# ## compute IRR
+# idr.display(resp.mode14)
+```
+
+########################################
+############ Exercise 6B ##############
+########################################
+
+### 6.5. Matched Case-Control Study: VC1to1 from epiDisplay
+```{r matched case-control}
+# Matched case-control dataset available in the epiDisplay package
+data(VC1to1)
+summ(VC1to1) # What is the shape/structure of this dataset?
+head(VC1to1) # 1 case matched to 1 control
+
+# Reshape the data to facilitate data exploration
+# function 'reshape' converts wide to long or vice versa
+wide <- reshape(VC1to1, timevar = "case", v.names = c("smoking", "rubber", "alcohol"), idvar = "matset", direction = "wide")
+head(wide, 3)
+table(wide$smoking.1, wide$smoking.0, dnn = c("smoking in case", "smoking in control"))
+# dnn: dimnames names
+
+# matchTab() is for the conditional OR (McNemar's OR)
+matchTab(VC1to1$case, VC1to1$smoking, strata = VC1to1$matset) # Is smoking exposure associated with cancer?
+matchTab(VC1to1$case, VC1to1$rubber, strata = VC1to1$matset) # Is working in the rubber industry associated with cancer?
+matchTab(VC1to1$case, VC1to1$alcohol, strata = VC1to1$matset) # Is alcohol consumption associated iwth cancer?
+
+## look at the full dataset VC1to6
+data(VC1to6) # 1 case matched to up to 6 controls
+summ(VC1to6)
+VC1to6[, ]
+
+# what is the effect of smoking?
+matchTab(VC1to6$case, VC1to6$smoking, strata = VC1to6$matset) # Is smoking exposure associated with cancer?
+matchTab(VC1to6$case, VC1to6$alcohol, strata = VC1to6$matset)
+```
+
+# Conditional logistic regression
+```{r conditional logistic regression}
+# conditional logistic reg using clogit from survival package
+### load the survival package
+library(survival)
+clogit1 <- clogit(case ~ smoking + alcohol + strata(matset), data = VC1to1) # 1 to 1 match dataset
+summary(clogit1) # What covariates are associated?
+
+clogit2 <- clogit(case ~ smoking + alcohol + strata(matset), data = VC1to6) # 1 to 6 match dataset
+summary(clogit2) # What covariates are associated?
+
+# compute ORs
+clogistic.display(clogit1)
+clogistic.display(clogit2)
+```
+
+### 6.6. Survival Analysis: Association between total mortality (d_total) and blood lead (bpb)
+```{r survival analysis}
+tab1(nhanes$d_total) # Variable for death due to any cause in NHANES
+summ(nhanes$pmon_mec) # Number of months of follow up 
+
+### Define Surv() object to use in later functions
+surv.total <- Surv(nhanes$pmon_mec, nhanes$d_total)
+surv.total[1:10] # Includes information on time of follow up and whether the person died, denoted with a "+"
+
+### K-M Life table and curve
+fit.total <- survfit(Surv(nhanes$pmon_mec, nhanes$d_total) ~ 1) # Model with no predictors, just outcome
+#summary(fit.total)
+summary(nhanes$pmon_mec/12) # How many years of follow up do you have?
+fit.total # How many people died over this time period?
+plot(fit.total)
+## suppress 95% CI lines and the time marks for censored subjects.
+plot(fit.total, ylim = c(0.7, 1.0), conf.int = F, mark.time = F, ylab="Probability of survival", xlab="Months")
+
+### Survival by different levels of covariates
+fit.total.sex <- survfit(Surv(nhanes$pmon_mec, nhanes$d_total) ~ nhanes$sex)
+fit.total.sex # How many people died in each sex group?
+#summary(fit.total.sex)[1:10]
+
+plot(fit.total.sex, ylim = c(0.6, 1.0), col = c("blue", "red"), lty = c(1, 2), mark.time = F, main = "Kaplan-Meier curve", xlab = "Time (months)", ylab = "Survival probability")
+legend("bottomleft", legend = c("Men", "Women"), col = c("blue", "red"),  lty = c(1, 2))
+
+### Test for differences in survival curves
+survdiff(Surv(nhanes$pmon_mec, nhanes$d_total) ~ nhanes$sex) # Is there a difference in survival among males and females?
+```
+
+### Cox regression
+```{r cox regression}
+cox.bpb <- coxph(Surv(nhanes$pmon_mec, nhanes$d_total) ~ nhanes$bpb)
+summary(cox.bpb) # Is blood Pb associated with survival? Easier to visualize in categories of exposure
+
+bpb3 <- cut2(nhanes$bpb, g = 3)
+tab1(bpb3) # Tertiles of blood Pb
+
+# K-M Life table and curve
+fit.total.bpb3 <- survfit(Surv(nhanes$pmon_mec, nhanes$d_total) ~ bpb3)
+fit.total.bpb3
+plot(fit.total.bpb3, col = c(1:3), lty = c(1:3), ylim = c(0.6, 1.0), main = "Survival in relation to blood lead levels", xlab = "Time (months)", ylab = "Survival probability") 
+legend(30, 0.7, legend = c("Q1", "Q2", "Q3"), lty = c(1:3), col = c(1:3))
+
+# crude
+cox.bpb3 <- coxph(Surv(nhanes$pmon_mec, nhanes$d_total) ~ bpb3)
+summary(cox.bpb3)
+
+# adjusted
+cox.bpb3.adj <- coxph(Surv(nhanes$pmon_mec, nhanes$d_total) ~ bpb3 + nhanes$age + factor(nhanes$sex) + factor(nhanes$race) + factor(nhanes$educ) + factor(nhanes$smk) + factor(nhanes$alc))
+summary(cox.bpb3.adj)
+
+### Test for the proportional hazards assumption
+test.prop <- cox.zph(cox.bpb3.adj) # Do any of the variables violate the proportional hazards assumption? May consider stratifying by sex.
+test.prop 
+## Display a graph of the scaled Schoenfeld residuals, along with a smooth curve
+plot(test.prop) # for all variables
+plot(test.prop, var = 4) + # Can call up variables indivdually, here for sex
+abline(h = 0, lty = 3, col = 2)
+
+# Stratify by sex
+cox.bpb3.adj1 <- coxph(Surv(nhanes$pmon_mec, nhanes$d_total) ~ bpb3 + nhanes$age + strata(nhanes$sex) + factor(nhanes$race) + factor(nhanes$educ) + factor(nhanes$smk) + factor(nhanes$alc))
+summary(cox.bpb3.adj1)
+cox.zph(cox.bpb3.adj1)
+```
+
+### 6.7. Write your own functions
+```{r write your own simple function}
+## Let's make a simple macro that calculates the mean and standard deviation at the same time.
+
+# get the results in vector form
+mystats <- function(x) {
+  mymean <- mean(x, na.rm = T)
+  mysd <- sd(x, na.rm = T)
+  c(mean = mymean, sd = mysd)
+}
+
+mystats(nhanes$age)
+mystats(nhanes$bpb)
+```
+
+# Regression functions 
+```{r write your own regression function}
+# Assume that you are examining age-adjusted associations of SBP with from the 13th variables (bmi) to 25th variables (packyrs) (n=13)
+# you want to run 13 linear regression models and save beta's and p-values
+
+summ(nhanes)
+test.var <- nhanes[, c(13:25)]
+head(test.var)
+
+# example
+mod <- lm(sbp ~ bmi + age, data = nhanes, na.action = na.omit)
+summary(mod)
+summary(mod)$coef[2, 1] # how to extract beta for bmi
+summary(mod)$coef[2, 4] # how to extract p-value for bmi
+
+Test <- function(data, y, cov) {
+  nvar <- ncol(data)
+  newdata <- data.frame(cbind(data, y, cov))
+
+  tmatrix <- data.frame(matrix(NA, 2, nvar)) # 2 rows
+  colnames(tmatrix) <- colnames(data) # create a row for each var
+  rownames(tmatrix) <- c("beta", "p")
+
+  for (i in 1:nvar) {
+    ind <- data[, i]
+    model <- lm(y ~ ind + cov, data = newdata, na.action = na.omit)
+    tmatrix[1, i] <- summary(model)$coef[2, 1]
+    tmatrix[2, i] <- summary(model)$coef[2, 4]
+  }
+  return(tmatrix)
+  write.csv(tmatrix, file = paste0(output_dir, "sbp.results.csv"))
+}
+
+Test(test.var, nhanes$sbp, nhanes$age) # Look in your output directory for the beta coeficients and p-values for all covariates! 
+```
+
+########################################
+############ Optional: Exercise 6C ##############
+########################################
