@@ -1,13 +1,13 @@
 ---
 title: "EPID674 Epidemiologic Data Analysis using R"
-subtitle: "Homework 6B"
+subtitle: "Not Graded Optional Homework 6B"
 author: "Insert Your Name Here"
 date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
 output:
   word_document: default
 ---
 
-
+# Note, this is an ungraded, optional assignment
 ```{r setup}
 knitr::opts_chunk$set(echo = TRUE)
 
