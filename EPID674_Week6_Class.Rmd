@@ -40,11 +40,11 @@ library(stargazer)
 
 # Specify file directories
 ```{r directories}
-#directory <- "/cloud/project/" #Class option when coding on RStudio Cloud
+directory <- "/cloud/project/" #Class option when coding on RStudio Cloud
 
 # Three alternate options to customize and specify source data directory if programming on a personal computer (only need to do the one that works for you)
 # directory<-"M:/EPID674/Data/" # Alternate option 1: location of the parent dataset in afs space of school computer
- directory <- "/Volumes/GoogleDrive/My Drive/Teaching/EPID674/2020_fall/EPID674_Week5_Class/" # Alternate option 2: location of data on my Macbook
+# directory <- "/Volumes/GoogleDrive/My Drive/Teaching/EPID674/2020_fall/EPID674_Week6_Class/" # Alternate option 2: location of data on my Macbook
 # directory<-"C:/Users/bakulski/Documents/EPID674/Data/" #Alternate option 3: location of data on a personal PC
 
 date <- format(Sys.Date(), "%Y%m%d")
@@ -103,19 +103,18 @@ table(nhanes$alc, useNA = "always")
 ## including only blood lead (bpb) (crude model).
 sbp.model <- lm(sbp ~ bpb, na.action = na.omit, data = nhanes)
 sbp.model
-summary(sbp.model)
+summary(sbp.model) # Is blood lead associated with SBP? Is this the direction you would expect?
 summary.aov(sbp.model)
 anova(sbp.model)
 
 ## Add age in the model
 sbp.model1 <- lm(sbp ~ bpb + age, na.action = na.omit, data = nhanes)
-summary(sbp.model1)
+summary(sbp.model1) # Does anything change with age in the model?
 ```
 
 # Add categorical variables linear regression
 ```{r linear regression categorical variables}
-## Add race, which is a categorical variable, therefore we should use factor()
-## or as.factor() which creates indicator variables for each category of race
+## Add race, which should be a categorical variable. We can use factor() or as.factor() to create indicator variables for each value of race
 table(nhanes$race)
 sbp.model2 <- lm(sbp ~ bpb + age + factor(race), na.action = na.omit, data = nhanes)
 summary(sbp.model2)
@@ -132,14 +131,10 @@ sbp.model2 <- lm(sbp ~ bpb + age + C(factor(race), contr.treatment(2, base = 2))
 summary(sbp.model2)
 
 # R provides Type I sequential SS, not the default Type III marginal SS reported by SAS and SPSS.
-# We will need to use the drop1() function to produce the familiar Type III results.
+# We can use the drop1() function to produce the familiar Type III results.
 # It will compare each term with the full model.
 anova(sbp.model2)
 drop1(sbp.model2, test = "F")
-
-## alternative
-library(car)
-Anova(sbp.model2, type = "III")
 
 ## We can also use the update function to add variables to a pre-existing model
 sbp.model2 <- update(sbp.model1, . ~ . + factor(race))
@@ -167,18 +162,18 @@ summary(sbp.model4)$coef[2, 1] # Pull out just the beta coefficient blood Pb
 # Does alcohol meet the guideline for a confounder?
 ```
 
-# Reporting regression results
+# Reporting regression results for untransformed linear data
 ```{r linear regression reporting results}
-## Compute percent increase in SBP and 95% CI per one unit increase and IQR increase in bpb
+## Compute difference in SBP and 95% CI per one unit increase and IQR increase in bpb
 # for one unit increase in exposure
-summary(sbp.model4)$coef[2, 1] # Beta coefficent
+summary(sbp.model4)$coef[2, 1] # Beta coefficient
 summary(sbp.model4)$coef[2, 1] - 1.96 * summary(sbp.model4)$coef[2, 2] # Lower confidence interval
 summary(sbp.model4)$coef[2, 1] + 1.96 * summary(sbp.model4)$coef[2, 2] # Upper confidence interval
 regress.display(sbp.model4) # Alternative: Convenience function to show all of the CI with the beta coefficients
 
 # for an IQR increase in exposure, to improve communication of findings
 IQR(nhanes$bpb)
-IQR(nhanes$bpb) * summary(sbp.model4)$coef[2, 1] # Per IQR increase in exposure, beta coefficent 
+IQR(nhanes$bpb) * summary(sbp.model4)$coef[2, 1] # Per IQR increase in exposure, beta coefficient 
 l95ci.iqr <- IQR(nhanes$bpb) * (summary(sbp.model4)$coef[2, 1] - 1.96 * summary(sbp.model4)$coef[2, 2]) # Per IQR increase in exposure, lower confidence interval
 u95ci.iqr <- IQR(nhanes$bpb) * (summary(sbp.model4)$coef[2, 1] + 1.96 * summary(sbp.model4)$coef[2, 2]) # Per IQR increase in exposure, upper confidence interval
 regress.display(sbp.model4)$table[2, ] * IQR(nhanes$bpb) # Multiply the convenience table by the IQR
@@ -190,18 +185,21 @@ regress.display(sbp.model4)$table[2, ] * IQR(nhanes$bpb) # Multiply the convenie
 sbp.model5 <- update(sbp.model4, . ~ . - factor(smk) + packyrs)
 summary(sbp.model5)
 
-AIC(sbp.model4, sbp.model5) # Which model has the lower AIC? The one with smk (model 4) or the one with packyrs (model 5)?
+AIC(sbp.model4)
+AIC(sbp.model5)
+## Which model has the lower AIC? The one with smk (model 4) or the one with packyrs (model 5)? 
+## Model 5 also dropped 215 more people. This is an analyst judgment call (no perfect answer). I would probably stick with model 4 since the AIC are close, to keep the people in the study.
 
-## Run two models one with age and one adding age as a quadratic function.
+## Run two models: One with age and one adding age as a quadratic function.
 ## Does the quadratic term improve the fit of the model?
 sbp.model6 <- update(sbp.model4, . ~ . + I(age^2))
 summary(sbp.model6) # Is the age squared term significant?
 
-## use the anova function to compare the 2 models and
+## Use the anova function to compare the 2 models and
 ## see if the quadratic term improves the model.
 anova(sbp.model4, sbp.model6, test = "F")
 
-## so sbp.model6 is our final model
+## We'll use sbp.model6 as our final model
 ## What is the relationship between bpb and sbp?
 ```
 
@@ -296,12 +294,12 @@ table(nhanes$sex)
 ## Male (sex==1)
 sbp.model6.male <- lm(sbp ~ bpb + age + factor(race) + bmi + factor(educ)
   + factor(smk) + factor(alc) + I(age^2), data = nhanes, subset = (sex == 1))
-summary(sbp.model6.male) # What is the beta coefficent for blood Pb in males?
+summary(sbp.model6.male) # What is the beta coefficient for blood Pb in males?
 
 ## Female (sex==2)
 sbp.model6.female <- lm(sbp ~ bpb + age + factor(race) + bmi + factor(educ)
   + factor(smk) + factor(alc) + I(age^2), data = nhanes, subset = (sex == 2))
-summary(sbp.model6.female) # What is the beta coefficent for blood Pb in females? Is it similar to that in males?
+summary(sbp.model6.female) # What is the beta coefficient for blood Pb in females? Is it similar to that in males?
 
 ### Use interaction model
 sbp.model6.int <- lm(sbp ~ bpb + factor(sex) + bpb * factor(sex) + age + factor(race) + bmi + factor(educ)
@@ -314,6 +312,7 @@ summary(sbp.model6.int) # Is the interaction term significant?
 ########################################
 ############ Exercise 6A ##############
 ########################################
+# This is your last homework assignment for the semester.
 
 
 ### 6.3. Generalized Linear Models: Association between hypertension (htn) and blood lead (bpb)
@@ -439,12 +438,13 @@ summary(fit.step) # This is exactly the same as backward
 ```
 
 ########################################
-############ Exercise 6B ##############
+############ Optional: Exercise 6B ##############
 ########################################
+# Not a graded assignment. Optional.
 
 ### 6.5. Matched Case-Control Study: VC1to1 from epiDisplay
 ```{r matched case-control}
-# Matched case-control dataset available in the epiDisplay package
+# Matched case-control dataset available in the epiDisplay package (packages can contain practice data as well as functions)
 data(VC1to1)
 summ(VC1to1) # What is the shape/structure of this dataset?
 head(VC1to1) # 1 case matched to 1 control
@@ -598,10 +598,10 @@ Test <- function(data, y, cov) {
     tmatrix[2, i] <- summary(model)$coef[2, 4]
   }
   return(tmatrix)
-  write.csv(tmatrix, file = paste0(output_dir, "sbp.results.csv"))
 }
 
-Test(test.var, nhanes$sbp, nhanes$age) # Look in your output directory for the beta coeficients and p-values for all covariates! 
+reg_output <- Test(test.var, nhanes$sbp, nhanes$age) # Run the function
+write.csv(reg_output, file = paste0(directory, "sbp.results.csv")) # Look in your output directory for the beta coefficients and p-values for all covariates! 
 ```
 
 ########################################
