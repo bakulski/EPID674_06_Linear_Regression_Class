@@ -16,11 +16,10 @@ library(epiDisplay)
 library(stats)
 library(Hmisc)
 library(gmodels)
-
-directory <- "/cloud/project/"
+library(here)
 ```
 
-# The association between BPA and type-2 diabetes in a human population was reported first by Dr. David Melzer's group (Lang et al., JAMA 2008). Using NHANES 2003-2004 data, they found that a 1-SD increase in BPA was associated with a 39% increased odds of type-2 diabetes (OR=1.39, 95% CI, 1.21 to 1.60, p<0.001) after controlling for age, gender, race/ethnicity, education, income, smoking status, BMI, waist circumference, and urinary creatinine. Let’s try to examine the same research question using the expanded dataset that we have (NHANES 2003-2008, bpa.sas7bdat).
+# The association between BPA and type-2 diabetes in a human population was reported first by Dr. David Melzer's group (Lang et al., JAMA 2008). Using NHANES 2003-2004 data, they found that a 1-SD increase in BPA was associated with a 39% increased odds of type-2 diabetes (OR=1.39, 95% CI, 1.21 to 1.60, p<0.001) after controlling for age, gender, race/ethnicity, education, income, smoking status, BMI, waist circumference, and urinary creatinine. Let’s try to examine the same research question using the expanded dataset that we have (NHANES 2003-2008, bpa.rda).
 
 
 # Problem 1

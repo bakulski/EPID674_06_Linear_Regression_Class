@@ -16,11 +16,10 @@ library(epiDisplay)
 library(stats)
 library(Hmisc)
 library(gmodels)
-
-directory <- "/cloud/project/"
+library(here)
 ```
 
-# Using the dataset “bpa.sas7bdat”, answer the following. 
+# Using the dataset “bpa.rda”, answer the following. 
 
 
 # Problem 1

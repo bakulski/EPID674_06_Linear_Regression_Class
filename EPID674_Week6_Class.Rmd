@@ -7,7 +7,6 @@ output:
    html_document: 
     toc: true
     toc_float: true
-   word_document: default
 ---
 
 # Set up options
@@ -35,22 +34,16 @@ library(foreign)
 library(Hmisc)
 library(epiDisplay)
 library(stargazer)
-```
-
-
-# Specify file directories
-```{r directories}
-directory <- "/cloud/project" # Class option when coding on RStudio Cloud
-# Will need to update if working on personal computer
+library(here)
 ```
 
 
 # Load data, remake useful variables
 ```{r load_data}
 # Check the file path
-file.path(directory, "nhanes3.rda")
+here("nhanes3.rda")
 # Load the saved R data
-load(file.path(directory, "nhanes3.rda"))
+load(here("nhanes3.rda"))
 
 
 # Remake a few variables from last class if they are no longer in your environment
@@ -195,19 +188,11 @@ anova(sbp.model4, sbp.model6, test = "F")
 ```{r linear_regression_diagnostics}
 ### Regression Diagnostics
 ## In the case of linear model, the plot of the model gives diagnostic plots
-par(mfrow = c(1, 1))
-plot(sbp.model6)
-
-par(mfrow = c(2, 2))
-plot(sbp.model6, id.n = 5, cex = 0.1)
-# plot.lm(sbp.model6)
-
-par(mfrow = c(1, 1))
-plot(sbp.model6, which = 1) # Can ask for the four plots one at a time
+plot(sbp.model6, which = 1)
 plot(sbp.model6, which = 2)
 plot(sbp.model6, which = 3)
+plot(sbp.model6, which = 4) 
 plot(sbp.model6, which = 5)
-plot(sbp.model6, which = 4) # There is an extra, hidden plot you can call out individually
 
 ## How about log(sbp)?
 ## Check how diagnostic plots using log-transformed sbp look like
@@ -231,10 +216,8 @@ par(mfrow = c(1, 1))
 termplot(sbp.model6, partial.resid = TRUE, col.res = "gray30", cex = 0.3, smooth = panel.smooth)
 ```
 
-## Suppose you decide to go with log transformed SBP.
-## Compute percent increase in SBP and 95% CI per one unit increase and IQR increase in bpb
-## what to report if y is log-transformed?
-## percent increase (difference) vs. absolute increase (difference)?
+## Suppose you decide to go with log transformed SBP. What do you report if y is log-transformed?
+## Percent increase (difference) vs. absolute increase (difference)
 ## Compute percent increase in SBP and 95% CI per one unit increase and IQR increase in bpb
 ```{r log_transformed_outcome_reporting_results}
 summary(sbp.model6.log)$coef
@@ -276,9 +259,18 @@ AIC(sbp.model6, sbp.model7) # Which model has the lower AIC? The spline term or 
 # Effect modification by sex
 ```{r effect_modification}
 # What if the relationship between blood Pb and sbp varies by sex?
-table(nhanes$sex)
+
+### Try interaction model
+sbp.model6.int <- lm(sbp ~ bpb + factor(sex) + bpb * factor(sex) + age + factor(race) + bmi + factor(educ)
+  + factor(smk) + factor(alc) + I(age^2), data = nhanes)
+# below is the same
+sbp.model6.int <- lm(sbp ~ bpb * factor(sex) + age + factor(race) + bmi + factor(educ)
+  + factor(smk) + factor(alc) + I(age^2), data = nhanes)
+summary(sbp.model6.int) # Is the interaction term significant?
 
 ### Stratified by sex
+table(nhanes$sex)
+
 ## Male (sex==1)
 sbp.model6.male <- lm(sbp ~ bpb + age + factor(race) + bmi + factor(educ)
   + factor(smk) + factor(alc) + I(age^2), data = nhanes, subset = (sex == 1))
@@ -288,19 +280,12 @@ summary(sbp.model6.male) # What is the beta coefficient for blood Pb in males?
 sbp.model6.female <- lm(sbp ~ bpb + age + factor(race) + bmi + factor(educ)
   + factor(smk) + factor(alc) + I(age^2), data = nhanes, subset = (sex == 2))
 summary(sbp.model6.female) # What is the beta coefficient for blood Pb in females? Is it similar to that in males?
-
-### Use interaction model
-sbp.model6.int <- lm(sbp ~ bpb + factor(sex) + bpb * factor(sex) + age + factor(race) + bmi + factor(educ)
-  + factor(smk) + factor(alc) + I(age^2), data = nhanes)
-# below is the same
-sbp.model6.int <- lm(sbp ~ bpb * factor(sex) + age + factor(race) + bmi + factor(educ)
-  + factor(smk) + factor(alc) + I(age^2), data = nhanes)
-summary(sbp.model6.int) # Is the interaction term significant?
 ```
+
 ########################################
 ############ Exercise 6A ##############
 ########################################
-# This is your last homework assignment for the semester.
+# This is your last graded homework assignment for the semester.
 
 
 ### 6.3. Generalized Linear Models: Association between hypertension (htn) and blood lead (bpb)
@@ -325,7 +310,7 @@ par(mfrow = c(1, 1))
 termplot(htn.model, se = T, partial.resid = T)
 ```
 
-# Stepwise variable selection
+# Stepwise variable selection: Machine learning
 ```{r logistic_regression_stepwise_variable_selection, include = F}
 ## you can construct your model using variable selection methods (forward, backward, stepwise)
 # first, define a matrix of predictors
@@ -448,139 +433,3 @@ matchTab(VC1to6$case, VC1to6$smoking, strata = VC1to6$matset) # Is smoking expos
 matchTab(VC1to6$case, VC1to6$alcohol, strata = VC1to6$matset)
 ```
 
-# Conditional logistic regression
-```{r conditional_logistic_regression}
-# conditional logistic reg using clogit from survival package
-### load the survival package
-library(survival)
-clogit1 <- clogit(case ~ smoking + alcohol + strata(matset), data = VC1to1) # 1 to 1 match dataset
-summary(clogit1) # What covariates are associated?
-
-clogit2 <- clogit(case ~ smoking + alcohol + strata(matset), data = VC1to6) # 1 to 6 match dataset
-summary(clogit2) # What covariates are associated?
-
-# compute ORs
-clogistic.display(clogit1)
-clogistic.display(clogit2)
-```
-
-### 6.6. Survival Analysis: Association between total mortality (d_total) and blood lead (bpb)
-```{r survival_analysis}
-tab1(nhanes$d_total) # Variable for death due to any cause in NHANES
-summ(nhanes$pmon_mec) # Number of months of follow up 
-
-### Define Surv() object to use in later functions
-surv.total <- Surv(nhanes$pmon_mec, nhanes$d_total)
-surv.total[1:10] # Includes information on time of follow up and whether the person died, denoted with a "+"
-
-### K-M Life table and curve
-fit.total <- survfit(Surv(nhanes$pmon_mec, nhanes$d_total) ~ 1) # Model with no predictors, just outcome
-#summary(fit.total)
-summary(nhanes$pmon_mec/12) # How many years of follow up do you have?
-fit.total # How many people died over this time period?
-plot(fit.total)
-## suppress 95% CI lines and the time marks for censored subjects.
-plot(fit.total, ylim = c(0.7, 1.0), conf.int = F, mark.time = F, ylab="Probability of survival", xlab="Months")
-
-### Survival by different levels of covariates
-fit.total.sex <- survfit(Surv(nhanes$pmon_mec, nhanes$d_total) ~ nhanes$sex)
-fit.total.sex # How many people died in each sex group?
-#summary(fit.total.sex)[1:10]
-
-plot(fit.total.sex, ylim = c(0.6, 1.0), col = c("blue", "red"), lty = c(1, 2), mark.time = F, main = "Kaplan-Meier curve", xlab = "Time (months)", ylab = "Survival probability")
-legend("bottomleft", legend = c("Men", "Women"), col = c("blue", "red"),  lty = c(1, 2))
-
-### Test for differences in survival curves
-survdiff(Surv(nhanes$pmon_mec, nhanes$d_total) ~ nhanes$sex) # Is there a difference in survival among males and females?
-```
-
-### Cox regression
-```{r cox_regression}
-cox.bpb <- coxph(Surv(nhanes$pmon_mec, nhanes$d_total) ~ nhanes$bpb)
-summary(cox.bpb) # Is blood Pb associated with survival? Easier to visualize in categories of exposure
-
-bpb3 <- cut2(nhanes$bpb, g = 3)
-tab1(bpb3) # Tertiles of blood Pb
-
-# K-M Life table and curve
-fit.total.bpb3 <- survfit(Surv(nhanes$pmon_mec, nhanes$d_total) ~ factor(bpb3))
-fit.total.bpb3
-plot(fit.total.bpb3, col = c(1:3), lty = c(1:3), ylim = c(0.6, 1.0), main = "Survival in relation to blood lead levels", xlab = "Time (months)", ylab = "Survival probability") 
-legend(30, 0.7, legend = c("Q1", "Q2", "Q3"), lty = c(1:3), col = c(1:3))
-
-# crude
-cox.bpb3 <- coxph(Surv(nhanes$pmon_mec, nhanes$d_total) ~ factor(bpb3))
-summary(cox.bpb3)
-
-# adjusted
-cox.bpb3.adj <- coxph(Surv(nhanes$pmon_mec, nhanes$d_total) ~ bpb3 + nhanes$age + factor(nhanes$sex) + factor(nhanes$race) + factor(nhanes$educ) + factor(nhanes$smk) + factor(nhanes$alc))
-summary(cox.bpb3.adj)
-
-### Test for the proportional hazards assumption
-test.prop <- cox.zph(cox.bpb3.adj) # Do any of the variables violate the proportional hazards assumption? May consider stratifying by sex.
-test.prop 
-## Display a graph of the scaled Schoenfeld residuals, along with a smooth curve
-plot(test.prop) # for all variables
-plot(test.prop, var = 4) + # Can call up variables indivdually, here for sex
-abline(h = 0, lty = 3, col = 2)
-
-# Stratify by sex
-cox.bpb3.adj1 <- coxph(Surv(nhanes$pmon_mec, nhanes$d_total) ~ bpb3 + nhanes$age + strata(nhanes$sex) + factor(nhanes$race) + factor(nhanes$educ) + factor(nhanes$smk) + factor(nhanes$alc))
-summary(cox.bpb3.adj1)
-cox.zph(cox.bpb3.adj1)
-```
-
-### 6.7. Write your own functions
-```{r write_your_own_simple_function}
-## Let's make a simple function that calculates the mean and standard deviation at the same time.
-
-# get the results in vector form
-MyStats <- function(x) {
-  mymean <- round(mean(x, na.rm = T), digits=2)
-  mysd <- round(sd(x, na.rm = T), digits=2)
-  c(mean = mymean, sd = mysd)
-}
-
-MyStats(nhanes$age)
-MyStats(nhanes$bpb)
-```
-
-# Regression functions 
-```{r write_your_own_regression_function}
-# Assume that you are examining age-adjusted associations of SBP with from the 13th variables (bmi) to 25th variables (packyrs) (n=13)
-# you want to run 13 linear regression models and save beta's and p-values
-
-summ(nhanes)
-test.var <- nhanes[, c(13:25)]
-head(test.var)
-
-# example
-mod <- lm(sbp ~ bmi + age, data = nhanes, na.action = na.omit)
-summary(mod)
-summary(mod)$coef[2, 1] # how to extract beta for bmi
-summary(mod)$coef[2, 4] # how to extract p-value for bmi
-
-RegressResults <- function(data, y, cov) {
-  nvar <- ncol(data)
-  newdata <- data.frame(cbind(data, y, cov))
-
-  tmatrix <- data.frame(matrix(NA, 2, nvar)) # 2 rows
-  colnames(tmatrix) <- colnames(data) # create a row for each var
-  rownames(tmatrix) <- c("beta", "p")
-
-  for (i in 1:nvar) {
-    ind <- data[, i]
-    model <- lm(y ~ ind + cov, data = newdata, na.action = na.omit)
-    tmatrix[1, i] <- summary(model)$coef[2, 1]
-    tmatrix[2, i] <- summary(model)$coef[2, 4]
-  }
-  return(tmatrix)
-}
-
-reg_output <- RegressResults(test.var, nhanes$sbp, nhanes$age) # Run the function
-write.csv(reg_output, file = file.path(directory, "sbp.results.csv")) # Look in your output directory for the beta coefficients and p-values for all covariates! 
-```
-
-########################################
-############ Optional: Exercise 6C ##############
-########################################
