@@ -4,9 +4,9 @@ subtitle: "Regression in R"
 author: "Kelly Bakulski"
 date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
 output:
-   html_document: 
-    toc: true
-    toc_float: true
+  html_document:
+    toc: yes
+    toc_float: yes
 ---
 
 # Set up options
@@ -433,3 +433,54 @@ matchTab(VC1to6$case, VC1to6$smoking, strata = VC1to6$matset) # Is smoking expos
 matchTab(VC1to6$case, VC1to6$alcohol, strata = VC1to6$matset)
 ```
 
+
+### 6.6. Write your own functions
+```{r write_your_own_simple_function}
+## Let's make a simple function that calculates the mean and standard deviation at the same time.
+
+# get the results in vector form
+MyStats <- function(x) {
+  mymean <- round(mean(x, na.rm = T), digits=2)
+  mysd <- round(sd(x, na.rm = T), digits=2)
+  c(mean = mymean, sd = mysd)
+}
+
+MyStats(nhanes$age)
+MyStats(nhanes$bpb)
+```
+
+# Regression functions 
+```{r write_your_own_regression_function}
+# Assume that you are examining age-adjusted associations of SBP with from the 13th variables (bmi) to 25th variables (packyrs) (n=13)
+# you want to run 13 linear regression models and save beta's and p-values
+
+summ(nhanes)
+test.var <- nhanes[, c(13:25)]
+head(test.var)
+
+# example
+mod <- lm(sbp ~ bmi + age, data = nhanes, na.action = na.omit)
+summary(mod)
+summary(mod)$coef[2, 1] # how to extract beta for bmi
+summary(mod)$coef[2, 4] # how to extract p-value for bmi
+
+RegressResults <- function(data, y, cov) {
+  nvar <- ncol(data)
+  newdata <- data.frame(cbind(data, y, cov))
+
+  tmatrix <- data.frame(matrix(NA, 2, nvar)) # 2 rows
+  colnames(tmatrix) <- colnames(data) # create a row for each var
+  rownames(tmatrix) <- c("beta", "p")
+
+  for (i in 1:nvar) {
+    ind <- data[, i]
+    model <- lm(y ~ ind + cov, data = newdata, na.action = na.omit)
+    tmatrix[1, i] <- summary(model)$coef[2, 1]
+    tmatrix[2, i] <- summary(model)$coef[2, 4]
+  }
+  return(tmatrix)
+}
+
+reg_output <- RegressResults(test.var, nhanes$sbp, nhanes$age) # Run the function
+write.csv(reg_output, file = here("sbp.results.csv")) # Look in your output directory for the beta coefficients and p-values for all covariates! 
+```
