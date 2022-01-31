@@ -23,7 +23,7 @@ install.packages("tidyverse")
 install.packages("here")
 install.packages("ggpubr")
 install.packages("broom")
-install.packages("stargazer")
+install.packages("gtsummary")
 install.packages("sjlabelled")
 # To avoid installing every time: change set up in curly brackets to eval=FALSE
 ```
@@ -36,7 +36,7 @@ library(tidyverse)
 library(here)
 library(ggpubr)
 library(broom)
-library(stargazer)
+library(gtsummary)
 library(sjlabelled)
 ```
 
@@ -242,19 +242,19 @@ m2 <- as.formula("LBXWBCSI ~ log(LBXBCD) + RIDAGEYR + race_eth")
 m3 <- as.formula("LBXWBCSI ~ log(LBXBCD) + RIDAGEYR + race_eth + sex")
 m4 <- as.formula("LBXWBCSI ~ log(LBXBCD) + RIDAGEYR + race_eth + sex + INDFMPIR")
 
-# Run the models and save as objects
-model_0 <- lm(m0, na.action = na.omit, data = nhanes_dataset)
-model_1 <- lm(m1, na.action = na.omit, data = nhanes_dataset)
-model_2 <- lm(m2, na.action = na.omit, data = nhanes_dataset)
-model_3 <- lm(m3, na.action = na.omit, data = nhanes_dataset)
-model_4 <- lm(m4, na.action = na.omit, data = nhanes_dataset)
+# Run the models and convert them into tbl formatted objects
+model_0 <- tbl_regression(lm(m0, na.action = na.omit, data = nhanes_dataset))
+model_1 <- tbl_regression(lm(m1, na.action = na.omit, data = nhanes_dataset))
+model_2 <- tbl_regression(lm(m2, na.action = na.omit, data = nhanes_dataset),
+                          label = race_eth ~ "Race/Ethnicity")
+model_3 <- tbl_regression(lm(m3, na.action = na.omit, data = nhanes_dataset),
+                          label = race_eth ~ "Race/Ethnicity")
+model_4 <- tbl_regression(lm(m4, na.action = na.omit, data = nhanes_dataset),
+                          label = race_eth ~ "Race/Ethnicity")
 
 # Compare outputs from models side by side, save as html for viewing
-stargazer(model_0, model_1, model_2, model_3, model_4,
-          type = "html",
-          dep.var.labels = "White Blood Cells (1000 cells/uL)",
-          title = "Regression Results",
-          out = "test.htm")
+tbl_merge(tbls = list(model_0, model_1, model_2, model_3, model_4),
+          tab_spanner = c("**Crude**", "**Model 1**", "**Model 2**", "**Model 3**", "**Model 4**"))
 ```
 
 
