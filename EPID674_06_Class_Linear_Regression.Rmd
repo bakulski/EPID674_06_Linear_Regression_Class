@@ -44,103 +44,208 @@ library(sjlabelled)
 # Load data, recheck variables
 ```{r load_data}
 # Check the file path
-here("nhanes_dataset.rda")
+here("nhanes_class_dataset.rda")
 # Load the saved R data
-load(here("nhanes_dataset.rda"))
+load(here("nhanes_class_dataset.rda"))
 
 # Check the variables
-str(nhanes_dataset)
+str(nhanes)
+# Add a label for the race_eth variable so we don't need add it in every model
+set_label(nhanes$race_eth) <- "Race/Ethnicity"
+set_label(nhanes$sex) <- "Sex"
+# Check the labeled variable
+str(nhanes$race_eth)
+str(nhanes$sex)
 ```
 
 
-# 6.1. Linear Models: Association between white blood cells (LBXWBCSI) and blood cadmium (LBXBCD)
+# Linear Models: Association between white blood cells (LBXWBCSI) and blood iron (LBXIRN)
 ## Outline
-* Examine distributions of variables
 * Check correlations between variables
+* Run and interpret linear regression
+* Add covariates
 * Check regression diagnostics
-* Run linear regression
+* Update linear regression model
 
 
-
-### Check cadmium variable first
-```{r check_variables}
-
-# Compare the distributions
-bcd <- ggplot(nhanes_dataset,
-              aes(x = LBXBCD)) +
-  geom_histogram(fill = "darkorchid",
-                 bins = 25)
-bcd_log <- ggplot(nhanes_dataset,
-              aes(x = log(LBXBCD))) +
-  geom_histogram(fill = "seagreen3",
-                 bins = 25)
-
-# Does log-transformed cadmium look closer to the normal distribution?
-ggarrange(bcd, bcd_log)
-```
-
-### Check white blood cell count variable
-```{r check_variables}
-# Check white blood cells
-ggplot(nhanes_dataset,
-              aes(x = LBXWBCSI)) +
-  geom_histogram(bins = 25)
-
-max(nhanes_dataset$LBXWBCSI, na.rm = TRUE)
-# High measurement at 400 - NHANES says this is above upper limit of detection so we should remove it
-
-# Remove the 400
-nhanes_dataset <- nhanes_dataset %>%
-  filter(!LBXWBCSI >= 400)
-# Check new maximum value
-max(nhanes_dataset$LBXWBCSI, na.rm = TRUE)
-
-# Recheck white blood cells
-ggplot(nhanes_dataset,
-              aes(x = LBXWBCSI)) +
-  geom_histogram(bins = 25)
-```
-
-
-## Look at bivariate association between log cadmium and continuous covariates
-```{r}
+## Look at bivariate association between white blood cells and continuous covariates
+```{r bivariate_plots}
 
 # Set up the plots
-age <- ggplot(nhanes_dataset,
-              aes(x = RIDAGEYR,
-                  y = log(LBXBCD))) +
-  geom_point() +
-  geom_smooth(method='lm')
-
-pir <- ggplot(nhanes_dataset,
-              aes(x = INDFMPIR,
-                  y = log(LBXBCD))) +
-  geom_point() +
-  geom_smooth(method='lm')
-
-wbc <- ggplot(nhanes_dataset,
-              aes(x = log(LBXBCD),
+iron <- ggplot(nhanes,
+              aes(x = LBXIRN,
                   y = LBXWBCSI)) +
-  geom_point() +
-  geom_smooth(method='lm')
+  geom_point(alpha = 0.1) +
+  ylim(0,20) +
+  geom_smooth(method = 'lm')
+
+
+# Set up the plots
+age <- ggplot(nhanes,
+              aes(x = RIDAGEYR,
+                  y = LBXWBCSI)) +
+  geom_point(alpha = 0.1) +
+  ylim(0,20) +
+  geom_smooth(method = 'lm')
+
+pir <- ggplot(nhanes,
+              aes(x = INDFMPIR,
+                  y = LBXWBCSI)) +
+  geom_point(alpha = 0.1) +
+  ylim(0,20) +
+  geom_smooth(method = 'lm')
 
 # Plot the distributions
-ggarrange(age, pir, wbc)
+ggarrange(iron, age, pir)
+```
+
+# Simple linear regression
+```{r simple_linear_regression}
+
+# Create a simple regression model for white blood cell count and blood iron (crude model)
+model_crude <- lm(LBXWBCSI ~ LBXIRN,
+                  na.action = na.omit,
+                  data = nhanes)
+
+# print regression results
+summary(model_crude)
+# Is blood iron associated with white blood cell count?
+# Do these findings match your expectations?
+
+```
+
+# Make a table of regression results
+```{r table_regression results}
+
+# More detailed information about regression results
+summary.aov(model_crude)
+glance(model_crude)
+
+# Make an output table of the findings, default settings
+tbl_regression(model_crude) 
+
+# Make an output table of the findings, update settings
+tbl_regression(model_crude, estimate_fun = partial(style_sigfig, digits = 3)) %>%
+  bold_labels() %>%
+  add_glance_table(include = c(adj.r.squared, AIC, nobs)) 
+
 ```
 
 
-# Regression diagnostics: LBXBCD vs log(LBXBCD)
+# Check your understanding! 
+Perform linear regression with blood cadmium (variable name: LBXBCD) as a predictor and neutrophil lymphocyte ratio (variable name: nlr) as the outcome. Are cadmium levels associated with the neutrophil lymphocyte ratio?
+
+
+
+# Multivariable linear regression: Adding a numeric covariate
+```{r simple_linear_regression}
+
+## Add age into the model
+model_age <- lm(LBXWBCSI ~ LBXIRN +
+                  RIDAGEYR,
+                na.action = na.omit,
+                data = nhanes)
+summary(model_age)
+# Does anything change with age in the model?
+```
+
+# Multivariable linear regression: Adding categorical covariates
+```{r multivariable_linear_regression}
+
+# Check that variables are factors, check the reference level
+str(nhanes$race_eth) #5 levels for race with Non-Hispanic White as the reference
+str(nhanes$sex) #2 levels for sex with Male as the reference
+
+# Construct adjusted model
+model_adj <- lm(LBXWBCSI ~ LBXIRN +
+                  RIDAGEYR +
+                  race_eth +
+                  sex +
+                  INDFMPIR,
+                na.action = na.omit,
+                data = nhanes)
+summary(model_adj)
+# Why are there only 4 levels for race, not 5?
+```
+
+
+# Make a nice table of regression statistics
+  # For more information:
+    *https://www.danieldsjoberg.com/gtsummary/articles/tbl_regression.html*
+```{r gtsummary_table}
+
+# Model summaries as an object
+glance_model_adj <- as.data.frame(glance(model_adj))
+glance_model_adj
+
+# Model statistics as an object
+model_stats <- as.data.frame(tidy(model_adj))
+model_stats
+
+# Produce a formatted model summary table
+tbl_regression(model_adj, estimate_fun = partial(style_sigfig, digits = 3)) %>%
+  bold_labels() 
+
+# Add features to the formatted model summary table
+tbl_regression(model_adj, estimate_fun = partial(style_sigfig, digits = 3)) %>% #change significant figures on the estimates
+  bold_labels() %>%
+  add_glance_table(include = c(adj.r.squared, AIC, nobs)) %>% # Adds rows for model summary statistics
+  add_significance_stars() # Adds asterisks instead of p-values, standard error instead of confidence interval
+
+```
+
+# Make a table comparing regression models
+```{r linear_regression_compare_models}
+
+# What covariates are associated with white blood cells? Do they make sense biologically?
+# Add other covariates to the model: which variables are biologically important?
+# Set up models that add variables sequentially
+# Run the models and convert them into tbl formatted objects
+model_0 <- tbl_regression(lm(LBXWBCSI ~ LBXIRN,
+                             na.action = na.omit, data = nhanes),
+                          estimate_fun = partial(style_sigfig, digits = 3))
+model_1 <- tbl_regression(lm(LBXWBCSI ~ LBXIRN + RIDAGEYR,
+                             na.action = na.omit, data = nhanes),
+                          estimate_fun = partial(style_sigfig, digits = 3))
+model_2 <- tbl_regression(lm(LBXWBCSI ~ LBXIRN + RIDAGEYR + race_eth,
+                             na.action = na.omit, data = nhanes),
+                          estimate_fun = partial(style_sigfig, digits = 3))
+model_3 <- tbl_regression(lm(LBXWBCSI ~ LBXIRN + RIDAGEYR + race_eth + sex,
+                             na.action = na.omit, data = nhanes),
+                          estimate_fun = partial(style_sigfig, digits = 3))
+model_4 <- tbl_regression(lm(LBXWBCSI ~ LBXIRN + RIDAGEYR + race_eth + sex + INDFMPIR,
+                             na.action = na.omit, data = nhanes),
+                          estimate_fun = partial(style_sigfig, digits = 3))
+
+# Compare outputs from models side by side, save as html for viewing
+tbl_merge(tbls = list(model_0, model_1, model_2, model_3, model_4),
+          tab_spanner = c("**Crude**", "**Model 1**", "**Model 2**", "**Model 3**", "**Model 4**"))
+
+```
+
+
+# Consider log transformed exposure
+```{r linear_regression_log_exposure}
+
+# Calculate multivariable adjusted model with a log transformed iron variable
+model_adj_log <- lm(LBXWBCSI ~ log2(LBXIRN) +
+                  RIDAGEYR +
+                  race_eth +
+                  sex +
+                  INDFMPIR,
+                na.action = na.omit,
+                data = nhanes)
+
+# print regression results
+summary(model_adj_log)
+# Is log2 of blood iron associated with white blood cell count?
+
+```
+
+
+# Regression diagnostics: LBXIRN vs log2(LBXIRN)
 ```{r linear_regression_diagnostics}
 ### Regression Diagnostics
-
-# Set up the models for comparison. First is not log transformed
-model <- lm(LBXWBCSI ~ LBXBCD,
-                na.action = na.omit,
-                data = nhanes_dataset)
-model_log <- lm(LBXWBCSI ~ log(LBXBCD),
-                na.action = na.omit,
-                data = nhanes_dataset)
-
 
 ## In the case of linear model, the plot of the model gives diagnostic plots
 # Residuals vs Fitted: linearity
@@ -150,166 +255,47 @@ model_log <- lm(LBXWBCSI ~ log(LBXBCD),
 
 # non log-transformed model
 par(mfrow = c(2, 2))
-plot(model)
+plot(model_adj)
 
 # log-transformed model
 par(mfrow = c(2, 2))
-plot(model_log)
+plot(model_adj_log)
+
+# Let's go with the log transformed exposure
 ```
 
 
-# Simple linear regression
-```{r simple_linear_regression}
+# Test for effect modification by sex
 
-# Create a simple regression model for white blood cell count and blood cadmium (crude model)
-model_crude <- lm(LBXWBCSI ~ log(LBXBCD),
-                  na.action = na.omit,
-                  data = nhanes_dataset)
-
-# print regression results
-summary(model_crude)
-# Is blood cadmium associated with white blood cell count?
-
-# More detailed information about regression
-summary.aov(model_crude)
-glance(model_crude)
-
-## Add age into the model
-model_age <- lm(LBXWBCSI ~ log(LBXBCD) +
-                  RIDAGEYR,
-                na.action = na.omit,
-                data = nhanes_dataset)
-summary(model_age)
-# Does anything change with age in the model?
-```
-
-
-# Add other variables to the linear regression
-```{r linear_regression}
-
-# Check that variables are factors, check the reference level
-str(nhanes_dataset$race_eth) #5 levels for race with Non-Hispanic White as the reference
-str(nhanes_dataset$sex) #2 levels for sex with Male as the reference
-
-# Construct adjusted model
-model_adj <- lm(LBXWBCSI ~ log(LBXBCD) +
-                  RIDAGEYR +
-                  race_eth +
-                  sex +
-                  INDFMPIR,
-                na.action = na.omit,
-                data = nhanes_dataset)
-summary(model_adj)
-
-# Why are there only 4 levels for race, not 5?
-```
-
-
-# Assign regression results to a dataframe
-```{r save results as object}
-
-# Model summaries
-glance_model_adj <- as.data.frame(glance(model_adj))
-
-# Model statistics
-model_stats <- as.data.frame(tidy(model_adj))
-```
-
-
-# Make a nice table of regression statistics
-  # For more information:
-    *https://www.danieldsjoberg.com/gtsummary/articles/tbl_regression.html*
-```{r gtsummary table}
-
-tbl_regression(model_adj,
-               label = c(race_eth ~ "Race/Ethnicity",
-                         sex ~ "Sex")) %>%
-  bold_labels()
-```
-
-
-# Compare regression models
-```{r linear_regression_compare_models}
-
-View(model_stats)
-# What covariates are associated with white blood cells? Do they make sense biologically?
-
-# Add other covariates to the model: which variables are biologically important?
-# Set up models that add variables sequentially
-m0 <- as.formula("LBXWBCSI ~ log(LBXBCD)")
-m1 <- as.formula("LBXWBCSI ~ log(LBXBCD) + RIDAGEYR")
-m2 <- as.formula("LBXWBCSI ~ log(LBXBCD) + RIDAGEYR + race_eth")
-m3 <- as.formula("LBXWBCSI ~ log(LBXBCD) + RIDAGEYR + race_eth + sex")
-m4 <- as.formula("LBXWBCSI ~ log(LBXBCD) + RIDAGEYR + race_eth + sex + INDFMPIR")
-
-# Run the models and convert them into tbl formatted objects
-model_0 <- tbl_regression(lm(m0, na.action = na.omit, data = nhanes_dataset))
-model_1 <- tbl_regression(lm(m1, na.action = na.omit, data = nhanes_dataset))
-model_2 <- tbl_regression(lm(m2, na.action = na.omit, data = nhanes_dataset),
-                          label = race_eth ~ "Race/Ethnicity")
-model_3 <- tbl_regression(lm(m3, na.action = na.omit, data = nhanes_dataset),
-                          label = race_eth ~ "Race/Ethnicity")
-model_4 <- tbl_regression(lm(m4, na.action = na.omit, data = nhanes_dataset),
-                          label = race_eth ~ "Race/Ethnicity")
-
-# Compare outputs from models side by side, save as html for viewing
-tbl_merge(tbls = list(model_0, model_1, model_2, model_3, model_4),
-          tab_spanner = c("**Crude**", "**Model 1**", "**Model 2**", "**Model 3**", "**Model 4**"))
-```
-
-
-# Check confounders - 10% Guideline
-```{r}
-# Check if poverty-income ratio is a confounder
-
-# Make the models into dataframes
-model_no_pir <- as.data.frame(tidy(model_3))
-model_pir <- as.data.frame(tidy(model_4)) #(same as model_stats)
-
-# Pull out coefficients for blood cadmium from model 3 (unadjusted for poverty-income) and model 4, and turn the coefficients into vectors
-est_model_no_pir <- model_no_pir %>%
-  filter(term == "log(LBXBCD)") %>%
-  pull(estimate)
-est_model_pir <-  model_pir %>%
-  filter(term == "log(LBXBCD)") %>%
-  pull(estimate)
-
-# 10% guideline for confounders: Does the addition of the new variable change the beta coefficient of interest by >10%?
-# Calculate the percent change in the blood Pb coefficient before and after alcohol in the model
-((est_model_pir - est_model_no_pir) / est_model_no_pir) * 100
-
-# Does poverty-income ratio meet the guideline for a confounder?
-```
-
-# Effect modification by sex
 ```{r effect_modification}
-# Does the relationship between blood cadmium and white blood cells vary by sex?
+# Does the relationship between blood iron and white blood cells vary by sex?
 
-model_int <- lm(LBXWBCSI ~ log(LBXBCD) +
+model_int <- lm(LBXWBCSI ~ log2(LBXIRN) +
                   RIDAGEYR +
                   race_eth +
                   sex +
-                  log(LBXBCD) * sex +
+                  log2(LBXIRN) * sex +
                   INDFMPIR,
                 na.action = na.omit,
-                data = nhanes_dataset)
+                data = nhanes)
+summary(model_int)
 model_int <- as.data.frame(tidy(model_int))
-
-View(model_int)
+model_int
 # Is the interaction term significant?
+```
 
+# Stratify by levels of sex and perform regression
 
-
-
+```{r stratification}
 ### Stratify dataset by sex
 
 # Check distribution
-table(nhanes_dataset$sex)
+table(nhanes$sex)
 
 # Filter dataset to only include male, run linear regression, save results as dataframe
-model_male <- nhanes_dataset %>%
+model_male <- nhanes %>%
   filter(sex == "Male") %>%
-  lm(LBXWBCSI ~ log(LBXBCD) +
+  lm(LBXWBCSI ~ log2(LBXIRN) +
                   RIDAGEYR +
                   race_eth +
                   INDFMPIR,
@@ -317,12 +303,13 @@ model_male <- nhanes_dataset %>%
                 data = .) %>%
   tidy() %>%
   as.data.frame()
-# What is the beta coefficient for blood Pb in males?
+model_male
+# What is the beta coefficient for blood iron in males?
 
 # Filter dataset to only include female, run linear regression, save results as dataframe
-model_female <- nhanes_dataset %>%
+model_female <- nhanes %>%
   filter(sex == "Female") %>%
-  lm(LBXWBCSI ~ log(LBXBCD) +
+  lm(LBXWBCSI ~ log2(LBXIRN) +
                   RIDAGEYR +
                   race_eth +
                   INDFMPIR,
@@ -330,19 +317,17 @@ model_female <- nhanes_dataset %>%
                 data = .) %>%
   tidy() %>%
   as.data.frame()
-# What is the beta coefficient for blood Pb in females? Is it similar to that in males?
+model_female
+# What is the beta coefficient for blood iron in females? Is it similar to that in males?
 ```
 
-########################################
-############# Exercise 6A ##############
-########################################
 
-# Automate linear regressions with multiple outcomes
-```{r}
+# Optional: Automate linear regressions with multiple outcomes and exposures
+```{r automating_regressions}
 
 # Goal: run individual linear regressions for 5 immune measure outcomes and 5 chemical exposures
 
-# First create a long dataset from nhanes_dataset
+# First create a long dataset from nhanes
     # Remove labels so columns can be vertically combined
     # Keep only the columns we want
     # Log transform the chemical measures
@@ -350,7 +335,7 @@ model_female <- nhanes_dataset %>%
     # Remove any rows with missing values
 
 # Remove all labels
-nhanes_unlab <- nhanes_dataset %>%
+nhanes_unlab <- nhanes %>%
   remove_all_labels()
 
 # Create vectors of the variables to keep
@@ -372,15 +357,15 @@ chems <- c("LBXIRN",
            "LBXBPB")
 
 # Create the long dataset
-long_nhanes_dataset <- nhanes_unlab %>%
+long_nhanes <- nhanes_unlab %>%
   select(all_of(demog),
          all_of(cells),
          all_of(chems)) %>%
-  mutate(LBXIRN = log(LBXIRN),
-         LBXCOT = log(LBXCOT),
-         URXUAS = log(URXUAS),
-         LBXBCD = log(LBXBCD),
-         LBXBPB = log(LBXBPB)) %>%
+  mutate(LBXIRN = log2(LBXIRN),
+         LBXCOT = log2(LBXCOT),
+         URXUAS = log2(URXUAS),
+         LBXBCD = log2(LBXBCD),
+         LBXBPB = log2(LBXBPB)) %>%
   pivot_longer(cols = all_of(chems),
                names_to = "chemical_codename",
                values_to = "chem_measurement") %>%
@@ -390,7 +375,7 @@ long_nhanes_dataset <- nhanes_unlab %>%
   na.omit()
 
 # Run multiple linear regressions
- df_regressions_i <- long_nhanes_dataset %>%
+ df_regressions_i <- long_nhanes %>%
     group_by(celltype_codename,
              chemical_codename) %>%
     do(lm(cell_measurement ~ chem_measurement +
@@ -405,5 +390,5 @@ long_nhanes_dataset <- nhanes_unlab %>%
  # How many regressions did we just run?
  # What is the formula for the first regression?
  
- View(model_stats_multiple)
+ View(df_regressions_i)
 ```
