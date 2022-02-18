@@ -29,8 +29,8 @@ library(broom)
 # Load data
 ```{r read_data}
 
-# Load the saved R data
-load(here("nhanes_homework_dataset.rda"), verbose = TRUE)
+# Load saved NHANES homework dataset from the project files. This is the dataset we built in homework 2
+load(here(("nhanes_homework_dataset.rda")), verbose = TRUE)
 ```
 
 # 1. 1.	Prior to using linear regression, develop an understanding of the bivariate relationship between your exposure and outcome.
