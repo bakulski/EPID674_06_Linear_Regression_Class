@@ -16,6 +16,7 @@ editor: source
 # Install packages. Do this only once.
 options(repos="https://cran.rstudio.com")
 install.packages("tidyverse")
+install.packages("rmarkdown")
 install.packages("here")
 install.packages("ggpubr")
 install.packages("broom")
@@ -405,5 +406,5 @@ long_nhanes <- nhanes_unlab %>%
  # How many regressions did we just run?
  # What is the formula for the first regression?
  
- View(df_regressions_i)
+df_regressions_i
 ```

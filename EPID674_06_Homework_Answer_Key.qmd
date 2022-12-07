@@ -1,0 +1,123 @@
+---
+title: "EPID 674: Linear Regression in R"
+subtitle: "Homework 6 Answer Key"
+author: "Kelly Bakulski"
+date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
+format: html
+editor: source
+---
+
+
+
+# Load packages
+
+```{r}
+#| label: load_packages
+#| echo: true
+#| results: 'hide'
+#| message: false
+#| warning: false
+
+# Load packages for this assignment, do this every time
+library(here)
+library(ggcorrplot)
+library(gtsummary)
+library(epiDisplay)
+library(tidyverse)
+library(ggpubr)
+library(broom)
+
+```
+
+# Load data
+```{r}
+#| label: load_data
+
+# Load saved NHANES homework dataset from the project files. This is the dataset we built in homework 2
+load(here(("nhanes_homework_dataset.rda")), verbose = TRUE)
+```
+
+# 1. Prior to using linear regression, develop an understanding of the bivariate relationship between your exposure and outcome.
+
+
+
+```{r}
+#| label: bivariate_assessment
+
+# One option: Plot the bivariate relationship between blood cadmium levels (x- axis variable: LBXBCD) and cognition score (y-axis variable: CFDDS)
+ggplot(nhanes_homework,
+              aes(x = LBXBCD,
+                  y = CFDDS)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = 'lm')
+
+# Another option: Perform a correlation test
+
+cor.test(nhanes_homework$LBXBCD, nhanes_homework$CFDDS, method = "spearman")
+
+```
+Interpret the findings: Based on the plot, we observe that at higher levels of blood cadmium, there is a trend for lower scores on the digit symbol substitution test. Based on the Spearman correlation test (chose because blood cadmium is non-normally distributed) we observe that blood cadmium levels are negatively correlated with digit symbol substitution test scores (rho is `r round(cor(nhanes_homework$LBXBCD, nhanes_homework$CFDDS, use = "complete.obs"), digits = 3)`). From both of these assessments, we expect to observe linear regression effect estimate below zero for the blood cadmium variable.
+
+
+# 2. Use simple linear regression to test the unadjusted association between blood cadmium levels (variable: LBXBCD) and cognition score (CFDDS)
+
+```{r}
+#| label: cadmium_cognition
+
+# One option
+  lm(CFDDS ~ LBXBCD, na.action = na.omit, data = nhanes_homework) %>%
+  summary()
+
+
+# Another option
+  lm(CFDDS ~ LBXBCD, na.action = na.omit, data = nhanes_homework) %>%
+  tbl_regression() %>%
+  add_glance_table(c(adj.r.squared, nobs))
+
+```
+
+Interpret the findings: Magnitude: We observe that a one-ug/dL increase in blood cadmium level is associated with 3.7-unit lower digit symbol substitution score. Yes, this is consistent with our expectations from problem 1. Level of significance: The 95% confidence interval (-6.5, -1.0) does not cross zero. The p-value of 0.007 is less than 0.05. Based on both of these observations, we reject the null hypothesis and conclude that blood cadmium levels are associated with digit symbol substitution test score. 
+
+
+# 3. Use simple linear regression to test the unadjusted association between educational attainment (variable: education) and cognition score (variable: CFDDS).
+
+
+```{r}
+#| label: education_cognition
+
+# One option
+  lm(CFDDS ~ education, na.action = na.omit, data = nhanes_homework) %>%
+  summary()
+
+
+# Another option
+  lm(CFDDS ~ education, na.action = na.omit, data = nhanes_homework) %>%
+  tbl_regression(estimate_fun = partial(style_sigfig, digits = 3)) %>%
+  add_glance_table(c(adj.r.squared, nobs))
+
+```
+
+Interpret the findings: 
+High school group: Magnitude: Those with a high school education or GED had 11.9 points higher digit symbol substitution score, relative to those with less than a high school education. Level of significance: The 95% confidence interval (9.8, 14.1) does not cross zero and the p-value is <0.001, so we reject the null hypothesis and conclude that educational attainment is associated with cognition score. 
+More than high school group: Magnitude: Those with more than a high school education had 20.2 points higher digit symbol substitution score, relative to those with less than a high school education. Level of significance: The 95% confidence interval (18.3, 22.0) does not cross zero and the p-value is <0.001, so we reject the null hypothesis and conclude that educational attainment is associated with cognition score. 
+
+
+
+# 4. Use multivariable linear regression to test the adjusted association between blood cadmium levels (variable: LBXBCD) and cognition score (variable: CFDDS), after adjusting for educational attainment, sex, race/ethnicity, and age.
+
+```{r}
+#| label: multivariable
+
+# One option
+  lm(CFDDS ~ LBXBCD + RIDAGEYR + sex + race_eth + education, na.action = na.omit, data = nhanes_homework) %>%
+  summary()
+
+# Another option
+  lm(CFDDS ~ LBXBCD + RIDAGEYR + sex + race_eth + education, na.action = na.omit, data = nhanes_homework) %>%
+  tbl_regression(estimate_fun = partial(style_sigfig, digits = 3)) %>%
+  add_glance_table(c(adj.r.squared, nobs))
+```
+
+Interpret the findings: Magnitude: We observe that a one-ug/dL increase in blood cadmium level is associated with 2.98-unit lower digit symbol substitution score. Level of significance: The 95% confidence interval (-5.22, -0.73) does not cross zero. The p-value of 0.007 is less than 0.05. Based on both of these observations, we reject the null hypothesis and conclude that blood cadmium levels are associated with digit symbol substitution test score. This magnitude of association is attenuated from our observations in problem 2, but the direction of effect and level of significance is consistent. 
+
+

@@ -1,0 +1,89 @@
+---
+title: "EPID 674: Linear Regression in R"
+subtitle: "Homework 6 Template"
+author: "Insert your name here"
+date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
+format: html
+editor: source
+---
+
+
+# Load packages
+
+```{r}
+#| label: load_packages
+#| echo: true
+#| results: 'hide'
+#| message: false
+#| warning: false
+
+# Load packages for this assignment, do this every time
+library(here)
+library(ggcorrplot)
+library(gtsummary)
+library(epiDisplay)
+library(tidyverse)
+library(ggpubr)
+library(broom)
+
+```
+
+# Load data
+```{r}
+#| label: read_data
+
+# Load saved NHANES homework dataset from the project files. This is the dataset we built in homework 2
+load(here(("nhanes_homework_dataset.rda")), verbose = TRUE)
+```
+
+# 1. Prior to using linear regression, develop an understanding of the bivariate relationship between your exposure and outcome.
+
+
+
+```{r}
+#| label: bivariate_assessment
+
+# Insert code for problem 1 here
+
+```
+Interpret the findings: 
+
+
+# 2. Use simple linear regression to test the unadjusted association between blood cadmium levels (variable: LBXBCD) and cognition score (CFDDS)
+
+```{r}
+#| label: cadmium_cognition
+
+# Insert code for problem 2 here
+
+```
+
+Interpret the findings: 
+
+# 3. Use simple linear regression to test the unadjusted association between educational attainment (variable: education) and cognition score (variable: CFDDS).
+
+
+```{r}
+#| label: education_cognition
+
+# Insert code for problem 3 here
+
+```
+
+Interpret the findings: 
+
+
+
+
+# 4. Use multivariable linear regression to test the adjusted association between blood cadmium levels (variable: LBXBCD) and cognition score (variable: CFDDS), after adjusting for educational attainment, sex, race/ethnicity, and age.
+
+```{r}
+#| label: multivariable
+
+# Insert code for problem 4 here
+
+```
+
+Interpret the findings: 
+
+
