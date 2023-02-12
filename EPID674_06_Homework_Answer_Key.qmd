@@ -4,6 +4,7 @@ subtitle: "Homework 6 Answer Key"
 author: "Kelly Bakulski"
 date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
 format: html
+embed-resources: true
 editor: source
 ---
 
